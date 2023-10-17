@@ -1,5 +1,5 @@
 use std::fs::File;
-
+use serde::Serialize;
 use clap::Parser;
 use dsa_tools_rust::*;
 use rand::Rng;
@@ -34,7 +34,7 @@ fn log(args: &Cli, msg: &impl std::fmt::Display) {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize)]
 struct Symptom {
     amount: u32,
     name: Box<str>,
@@ -93,6 +93,7 @@ fn roll_symptom (rng: &mut rand::rngs::ThreadRng) -> Symptom {
     return Symptom { name: "Bewusstlosigkeit".into(), unconsciousness: true, ..Default::default()}
 }
 
+#[derive(Serialize)]
 struct SymptomList {
     symptoms: Vec<Symptom>
 }
@@ -116,6 +117,7 @@ impl std::fmt::Display for SymptomList {
     }
 }
 
+#[derive(Serialize)]
 struct Poison {
     level: u32,
     start: DiceOverTime,
@@ -129,6 +131,12 @@ impl Poison {
     }
     fn csv(&self) -> String{
         format!("\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"", self.level, self.start, self.damage, self.duration, self.symptoms)
+    }
+    fn json(&self) -> String {
+        match serde_json::to_string(self) {
+            Ok(json) => json,
+            Err(e) => panic!("{}", e)
+        }
     }
 }
 impl std::fmt::Display for Poison {
@@ -198,5 +206,6 @@ fn main() {
         Format::TEXT => write!(file, "{}", p),
         Format::CSV => write!(file, "{}", p.csv()),
         Format::MD => write!(file, "{}", p.md()),
+        Format::JSON => write!(file, "{}", p.json())
     };
 }

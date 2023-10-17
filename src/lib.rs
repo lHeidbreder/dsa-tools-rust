@@ -1,5 +1,7 @@
 use clap::{ValueEnum, builder::PossibleValue};
+use serde::Serialize;
 
+#[derive(Serialize)]
 pub enum Timeunit {
     KR, SR, STD
 }
@@ -18,14 +20,16 @@ impl Default for Timeunit {
     }
 }
 
+#[derive(Serialize)]
 pub enum Format {
-    TEXT, MD, CSV
+    TEXT, MD, CSV, JSON
 }
 impl Clone for Format {
     fn clone(&self) -> Self {
         match self {
             Format::MD => Format::MD,
             Format::CSV => Format::CSV,
+            Format::JSON => Format::JSON,
             _ => Format::TEXT
         }
     }
@@ -35,25 +39,27 @@ impl std::fmt::Display for Format {
         match self {
             Format::MD => write!(f, "MD"),
             Format::CSV => write!(f, "CSV"),
-            Format::TEXT => write!(f, "TEXT")
+            Format::TEXT => write!(f, "TEXT"),
+            Format::JSON => write!(f, "JSON")
         }
     }
 }
 impl ValueEnum for Format {
     fn value_variants<'a>() -> &'a [Self] {
-        &[Self::TEXT, Self::CSV, Self::MD]
+        &[Self::TEXT, Self::CSV, Self::MD, Self::JSON]
     }
 
     fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
         Some(match self {
-            Self::TEXT => PossibleValue::new("text"),
-            Self::CSV => PossibleValue::new("csv"),
-            Self::MD => PossibleValue::new("md")
+            Format::TEXT => PossibleValue::new("text"),
+            Format::CSV => PossibleValue::new("csv"),
+            Format::MD => PossibleValue::new("md"),
+            Format::JSON => PossibleValue::new("json"),
         })
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize)]
 pub struct DiceOverTime {
     pub dice: u32,
     pub flat: u32,
@@ -70,6 +76,7 @@ impl std::fmt::Display for DiceOverTime {
     }
 }
 
+#[derive(Serialize)]
 pub enum Characteristic {
     MU, KL, IN, CH, FF, GE, KO, KK
 }
