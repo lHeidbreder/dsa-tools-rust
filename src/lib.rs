@@ -73,3 +73,17 @@ impl std::fmt::Display for DiceOverTime {
 pub enum Characteristic {
     MU, KL, IN, CH, FF, GE, KO, KK
 }
+impl std::fmt::Display for Characteristic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Characteristic::MU => write!(f, "MU"),
+            Characteristic::KL => write!(f, "KL"),
+            Characteristic::IN => write!(f, "IN"),
+            Characteristic::CH => write!(f, "CH"),
+            Characteristic::FF => write!(f, "FF"),
+            Characteristic::GE => write!(f, "GE"),
+            Characteristic::KO => write!(f, "KO"),
+            Characteristic::KK => write!(f, "KK"),
+        }
+    }
+}

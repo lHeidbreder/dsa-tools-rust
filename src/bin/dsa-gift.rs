@@ -1,4 +1,4 @@
-use std::{fs::File, fmt::write};
+use std::fs::File;
 
 use clap::Parser;
 use dsa_tools_rust::*;
@@ -8,8 +8,8 @@ use rand::Rng;
 struct Cli {
     #[arg(short = 'v', long = "verbose", default_value_t = false)]
     verbose: bool,
-    #[arg(short = 'o', long = "output", default_value = "/dev/null")]
-    outfile: std::path::PathBuf,
+    #[arg(short = 'o', long = "output", default_value = None)]
+    outfile: Option<std::path::PathBuf>,
     #[arg(short = 'f', long = "format", default_value_t = Format::TEXT, ignore_case = true)]
     format: Format,
     #[arg(short = 'x', long = "seed", default_value_t = 0)]
@@ -19,7 +19,12 @@ struct Cli {
 }
 impl std::fmt::Display for Cli {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Seed: {}; Level: {}, Output: {}, Format: {}", self.seed, self.level, self.outfile.display(), self.format)
+        let binding = std::path::PathBuf::from("");
+        let file = match &self.outfile {
+            Some(f) => f,
+            None => &binding,
+        };
+        write!(f, "Seed: {}; Level: {}, Output: {}, Format: {}", self.seed, self.level, file.display(), self.format)
     }
 }
 
@@ -31,6 +36,7 @@ fn log(args: &Cli, msg: &impl std::fmt::Display) {
 
 #[derive(Default)]
 struct Symptom {
+    amount: u32,
     name: Box<str>,
     characteristic: Option<Characteristic>,
     disadvantage: Option<String>,
@@ -38,16 +44,18 @@ struct Symptom {
 }
 impl std::fmt::Display for Symptom {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)
+        write!(f, "{}", self.name)?;
+        match &self.characteristic {
+            Some(c) => write!(f, " ({} -{}W6)", c, self.amount)?,
+            None => (),
+        };
+        match &self.disadvantage {
+            Some(d) => write!(f, " ({} +{}W6)", d, self.amount)?,
+            None => (),
+        };
+        if self.unconsciousness {write!(f, " (bewusstlos)")?;}
+        Ok(())
     }
-}
-fn display_symptoms(symptoms: &Vec<Symptom>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "[");
-    for s in 0..symptoms.len() {
-        write!(f, "{}", symptoms[s]);
-        if s < (symptoms.len()-1) {write!(f, ", ");}
-    }
-    write!(f, "]")
 }
 fn roll_symptom (rng: &mut rand::rngs::ThreadRng) -> Symptom {
     let roll:u32 = rng.gen_range(1..21);
@@ -85,26 +93,47 @@ fn roll_symptom (rng: &mut rand::rngs::ThreadRng) -> Symptom {
     return Symptom { name: "Bewusstlosigkeit".into(), unconsciousness: true, ..Default::default()}
 }
 
+struct SymptomList {
+    symptoms: Vec<Symptom>
+}
+impl SymptomList {
+    fn push(&mut self, x: Symptom) {
+        for s in &mut self.symptoms {
+            if s.name == x.name {s.amount += 1;}
+            return
+        }
+        self.symptoms.push(x)
+    }
+}
+impl std::fmt::Display for SymptomList {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[")?;
+        for s in 0..self.symptoms.len() {
+            write!(f, "{}", self.symptoms[s])?;
+            if s < (self.symptoms.len()-1) {write!(f, ", ")?;}
+        }
+        write!(f, "]")
+    }
+}
+
 struct Poison {
     level: u32,
     start: DiceOverTime,
     damage: DiceOverTime,
     duration: DiceOverTime,
-    symptoms: Vec<Symptom>
+    symptoms: SymptomList
 }
 impl Poison {
     fn md(&self) -> String {
-        todo!("Symptome auflisten");
-        format!("- Stufe {}\n- Beginn nach {}\n- Dauer {}\n- Schaden {} pro {}", self.level, self.start, self.duration, self.damage.roll_only(), self.damage.time)
+        format!("- Stufe {}\n- Beginn nach {}\n- Dauer {}\n- Schaden {} pro {}\n- {}", self.level, self.start, self.duration, self.damage.roll_only(), self.damage.time, self.symptoms)
     }
     fn csv(&self) -> String{
-        format!("\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"", self.level, self.start, self.damage, self.duration, display_symptoms(self.symptoms))
+        format!("\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"", self.level, self.start, self.damage, self.duration, self.symptoms)
     }
 }
 impl std::fmt::Display for Poison {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!("Symptome auflisten");
-        write!(f, "Stufe {}\nBeginn nach {}\nDauer {}\nSchaden {} pro {}", self.level, self.start, self.duration, self.damage.roll_only(), self.damage.time)
+        write!(f, "Stufe {}\nBeginn nach {}\nDauer {}\nSchaden {} pro {}\n{}", self.level, self.start, self.duration, self.damage.roll_only(), self.damage.time, self.symptoms)
     }
 }
 
@@ -152,17 +181,20 @@ fn main() {
     log(&args, &damage);
     log(&args, &duration);
 
-    let mut symptoms:Vec<Symptom> = Vec::new();
+    let mut symptoms:SymptomList = SymptomList { symptoms: Vec::new() };
     for _ in 0..(args.level as f64/ 2.0).ceil() as u32 {
         symptoms.push(roll_symptom(&mut rng))
     }
 
-    let p = Poison{level: args.level, start: start, damage: damage, duration: duration, symptoms: symptoms};
-    let mut file: Box<dyn std::io::Write> = match File::create(args.outfile) {
-        Ok(f) => Box::new(f),
-        Err(e) => Box::new(std::io::stdout())
+    let p = Poison{level: args.level, start: start, damage: damage, duration: duration, symptoms: symptoms };
+    let mut file: Box<dyn std::io::Write> = match args.outfile {
+        Some(f) => match File::create(f) {
+            Ok(fi) => Box::new(fi),
+            Err(_) => Box::new(std::io::stdout()),
+        },
+        None => Box::new(std::io::stdout()),
     };
-    match args.format {
+    let _ = match args.format {
         Format::TEXT => write!(file, "{}", p),
         Format::CSV => write!(file, "{}", p.csv()),
         Format::MD => write!(file, "{}", p.md()),
