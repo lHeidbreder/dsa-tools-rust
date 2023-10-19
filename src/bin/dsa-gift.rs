@@ -60,37 +60,19 @@ impl std::fmt::Display for Symptom {
 fn roll_symptom (rng: &mut rand::rngs::ThreadRng) -> Symptom {
     let roll:u32 = rng.gen_range(1..21);
 
-    if roll <= 4 {
-        return Symptom{name: "Erbrechen".into(), characteristic: Some(Characteristic::CH), ..Default::default()};
+    match roll {
+        1..=4 => Symptom{name: "Erbrechen".into(), characteristic: Some(Characteristic::CH), ..Default::default()},
+        5..=6 => Symptom{name: "Durchfall / Koliken".into(), characteristic: Some(Characteristic::MU), ..Default::default()},
+        7..=8 => Symptom{name: "Schweißausbrüche / Atemnot".into(), characteristic: Some(Characteristic::KO), ..Default::default()},
+        9..=10 => Symptom{name: "Schwäche".into(), characteristic: Some(Characteristic::KK), ..Default::default()},
+        11..=12 => Symptom{name: "Kopfschmerz / Schwindel".into(), characteristic: Some(Characteristic::KL), ..Default::default()},
+        13..=14 => Symptom{name: "Lähmungen".into(), characteristic: Some(Characteristic::GE), ..Default::default()},
+        15..=16 => Symptom{name: "Taubheiten".into(), characteristic: Some(Characteristic::FF), ..Default::default()},
+        17 => Symptom{name: "Schwellungen".into(), characteristic: Some(Characteristic::GE), ..Default::default()},
+        18 => Symptom{name: "Erregung".into(), disadvantage: Some("Jähzorn".to_string()), ..Default::default()},
+        19 => Symptom{name: "Blutungen".into(), disadvantage: Some("Aberglaube".to_string()), ..Default::default()},
+        _ => Symptom { name: "Bewusstlosigkeit".into(), unconsciousness: true, ..Default::default()}
     }
-    if roll <= 6 {
-        return Symptom{name: "Durchfall / Koliken".into(), characteristic: Some(Characteristic::MU), ..Default::default()};
-    }
-    if roll <= 8 {
-        return Symptom{name: "Schweißausbrüche / Atemnot".into(), characteristic: Some(Characteristic::KO), ..Default::default()};
-    }
-    if roll <= 10 {
-        return Symptom{name: "Schwäche".into(), characteristic: Some(Characteristic::KK), ..Default::default()};
-    }
-    if roll <= 12 {
-        return Symptom{name: "Kopfschmerz / Schwindel".into(), characteristic: Some(Characteristic::KL), ..Default::default()};
-    }
-    if roll <= 14 {
-        return Symptom{name: "Lähmungen".into(), characteristic: Some(Characteristic::GE), ..Default::default()};
-    }
-    if roll <= 16 {
-        return Symptom{name: "Taubheiten".into(), characteristic: Some(Characteristic::FF), ..Default::default()};
-    }
-    if roll <= 17 {
-        return Symptom{name: "Schwellungen".into(), characteristic: Some(Characteristic::GE), ..Default::default()};
-    }
-    if roll <= 18 {
-        return Symptom{name: "Erregung".into(), disadvantage: Some("Jähzorn".to_string()), ..Default::default()};
-    }
-    if roll <= 19 {
-        return Symptom{name: "Blutungen".into(), disadvantage: Some("Aberglaube".to_string()), ..Default::default()};
-    }
-    return Symptom { name: "Bewusstlosigkeit".into(), unconsciousness: true, ..Default::default()}
 }
 
 #[derive(Serialize)]
@@ -161,30 +143,30 @@ fn main() {
     let start: DiceOverTime;
     let damage: DiceOverTime;
     let duration: DiceOverTime;
-    if 1 <= args.level && args.level <= 5 {
-        start = DiceOverTime{dice: 1, ..Default::default()};
-        damage = DiceOverTime{flat: 1, time: Timeunit::STD, ..Default::default()};
-        duration = DiceOverTime{flat: dice, ..Default::default()};
+    match args.level {
+        1..=5 => {
+            start = DiceOverTime{dice: 1, ..Default::default()};
+            damage = DiceOverTime{flat: 1, time: Timeunit::STD, ..Default::default()};
+            duration = DiceOverTime{flat: dice, ..Default::default()};
+        },
+        6..=9 => {
+            start = DiceOverTime{flat: 1, ..Default::default()};
+            damage = DiceOverTime{dice: 1, ..Default::default()};
+            duration = DiceOverTime{flat: dice, ..Default::default()};
+        },
+        10..=15 => {
+            start = DiceOverTime{dice: 1, flat: 4, time: Timeunit::KR};
+            damage = DiceOverTime{dice: 2, ..Default::default()};
+            duration = DiceOverTime{flat: dice/2, ..Default::default()};
+        },
+        16..=20 => {
+            start = DiceOverTime{dice: 1, time: Timeunit::KR, ..Default::default()};
+            damage = DiceOverTime{dice: 1, time: Timeunit::KR, ..Default::default()};
+            duration = DiceOverTime{flat: dice, time: Timeunit::KR, ..Default::default()};
+        },
+        _ => panic!()
     }
-    else if 6 <= args.level && args.level <= 9 {
-        start = DiceOverTime{flat: 1, ..Default::default()};
-        damage = DiceOverTime{dice: 1, ..Default::default()};
-        duration = DiceOverTime{flat: dice, ..Default::default()};
-    }
-    else if 10 <= args.level && args.level <= 15 {
-        start = DiceOverTime{dice: 1, flat: 4, time: Timeunit::KR};
-        damage = DiceOverTime{dice: 2, ..Default::default()};
-        duration = DiceOverTime{flat: dice/2, ..Default::default()};
-    }
-    else if 16 <= args.level && args.level <= 20 {
-        start = DiceOverTime{dice: 1, time: Timeunit::KR, ..Default::default()};
-        damage = DiceOverTime{dice: 1, time: Timeunit::KR, ..Default::default()};
-        duration = DiceOverTime{flat: dice, time: Timeunit::KR, ..Default::default()};
-    }
-    else {
-        panic!("Hier solltest du nicht ankommen")
-    }
-
+    
     log(&args, &start);
     log(&args, &damage);
     log(&args, &duration);
