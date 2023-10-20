@@ -71,12 +71,17 @@ impl DiceOverTime {
     }
 }
 impl std::fmt::Display for DiceOverTime {
+    #[allow(unused_must_use)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}W6+{} {}", self.dice, self.flat, self.time)
+        //write!(f, "{}W6+{} {}", self.dice, self.flat, self.time)
+        if self.dice != 0 {write!(f, "{}W6", self.dice);}
+        if self.dice != 0 && self.flat > 0 {write!(f, "+");}
+        if self.flat != 0 {write!(f, "{}", self.flat);}
+        write!(f, " {}", self.time)
     }
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 pub enum Characteristic {
     MU, KL, IN, CH, FF, GE, KO, KK
 }
