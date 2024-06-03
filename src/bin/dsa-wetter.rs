@@ -1,27 +1,36 @@
 use clap::{Parser, ValueEnum, builder::PossibleValue};
 use dsa_tools_rust::Format;
-use rand::{rngs::ThreadRng, Rng};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use serde::Serialize;
 
 #[derive(Parser)]
 struct Cli {
-    #[arg(short = 'v', long = "verbose", default_value_t = false)]
+    #[arg(short = 'v', long = "verbose", default_value_t = false, 
+        help = "Spuckt unnötig viel Holz aus")]
     verbose: bool,
-    #[arg(short = 'f', long = "format", default_value_t = Format::TEXT, ignore_case = true)]
+    #[arg(short = 'f', long = "format", default_value_t = Format::TEXT, ignore_case = true, 
+        help = "Ausgabeformat: Freitext, md, json oder csv. Standard ist Freitext.", hide_possible_values = true, hide_default_value = true)]
     format: Format,
-    #[arg(short = 'o', long = "output", default_value = None)]
+    #[arg(short = 'o', long = "output", default_value = None,
+        help = "Der Speicherort für die Ausgabe. Standard ist stdout.")]
     outfile: Option<std::path::PathBuf>,
-    #[arg(short = 'x', long = "seed", default_value_t = 0)]
-    seed: i64,
-    #[arg(short = 'd', long = "desert", default_value_t = false)]
+    #[arg(short = 'x', long = "seed", default_value = None,
+        help = "Setze den Seed manuell.", hide_default_value = true)]
+    seed: Option<i64>,
+    #[arg(short = 'd', long = "desert", default_value_t = false,
+        help = "Die Gruppe befindet sich in der Wüste.")]
     is_desert: bool,
-    #[arg(short = 's', long = "season", default_value_t = Season::SUMMER, ignore_case = true)]
+    #[arg(short = 's', long = "season", default_value_t = Season::SUMMER, ignore_case = true,
+        help = "Die Jahreszeit. Standard ist Sommer.", hide_default_value = true)]
     season: Season,
-    #[arg(short = 'w', long = "windy", default_value_t = false)]
+    #[arg(short = 'w', long = "windy", default_value_t = false,
+        help = "Es ist besonders windig.")]
     is_windy: bool,
-    #[arg(short = 'r', long = "region", default_value_t = Region::MITTELREICH, ignore_case = true)]
+    #[arg(short = 'r', long = "region", default_value_t = Region::MITTELREICH, ignore_case = true, 
+        help = "Die Region wie angegeben auf S. 157 WdE. Standard ist Zentrales Mittelreich.", hide_possible_values = true, hide_default_value = true)]
     region: Region,
-    #[arg(short = 'n', long = "days", default_value_t = 1)]
+    #[arg(short = 'n', long = "days", default_value_t = 1,
+        help = "Die Menge an Tagen, die generiert werden soll. Standard ist 1.", hide_default_value = true)]
     days: u64
 }
 impl std::fmt::Display for Cli {
@@ -31,7 +40,7 @@ impl std::fmt::Display for Cli {
             Some(f) => f,
             None => &binding,
         };
-        write!(f, "Seed: {}; Output: {}; Format: {}", self.seed, file.display(), self.format)
+        write!(f, "Output: {}; Format: {}", file.display(), self.format)
     }
 }
 fn log(args: &Cli, msg: &impl std::fmt::Display) {
@@ -210,10 +219,10 @@ struct Day {
 }
 impl Day {
     fn md(&self) -> String {
-        format!("- Tag {}: {}, {}, {} - {}\n", self.no, self.clouds, self.wind, self.day_temp, self.night_temp)
+        format!("- Tag {}: {}, {}, {} - {}", self.no, self.clouds, self.wind, self.day_temp, self.night_temp)
     }
     fn csv(&self) -> String {
-        format!("Tag {}, {}, {}, {}, {}\n", self.no, self.clouds, self.wind, self.day_temp, self.night_temp)
+        format!("Tag {}, {}, {}, {}, {}", self.no, self.clouds, self.wind, self.day_temp, self.night_temp)
     }
 }
 impl std::fmt::Display for Day {
@@ -232,7 +241,7 @@ enum ChangesFlags {
     ALL = 0b1111
 }
 
-fn step1(args: &Cli, rng: &mut ThreadRng) -> Clouds {
+fn step1(args: &Cli, rng: &mut StdRng) -> Clouds {
     let roll = rng.gen_range(1..=20);
     if args.is_desert {
         match roll {
@@ -251,7 +260,7 @@ fn step1(args: &Cli, rng: &mut ThreadRng) -> Clouds {
         _ => panic!()
     }
 }
-fn step2(args: &Cli, rng: &mut ThreadRng) -> Wind {
+fn step2(args: &Cli, rng: &mut StdRng) -> Wind {
     let roll = if args.is_windy {rng.gen_range(1..=20) + 2} else {rng.gen_range(1..=20)};
     
     if args.season == Season::AUTUMN {
@@ -278,14 +287,14 @@ fn step2(args: &Cli, rng: &mut ThreadRng) -> Wind {
         }
     }
 }
-fn step3(args: &Cli, rng: &mut ThreadRng, clouds_mod: i32, wind_mod: i32) -> (i32, i32) {
+fn step3(args: &Cli, rng: &mut StdRng, clouds_mod: i32, wind_mod: i32) -> (i32, i32) {
     let roll = rng.gen_range(1..=20)+5;
     (
         args.region.temp_base(&args.season) + wind_mod + clouds_mod,
         args.region.temp_base(&args.season) + wind_mod - clouds_mod - roll
     )
 }
-fn step4(rng: &mut ThreadRng, clouds: &Clouds, wind: &Wind) -> Rain {
+fn step4(rng: &mut StdRng, clouds: &Clouds, wind: &Wind) -> Rain {
     let roll = rng.gen_range(1..=20);
     let does_rain: bool = match clouds {
         Clouds::NONE => false,
@@ -343,7 +352,7 @@ fn step4(rng: &mut ThreadRng, clouds: &Clouds, wind: &Wind) -> Rain {
     }
     Rain::NONE
 }
-fn step6(args: &Cli, rng: &mut ThreadRng) -> usize {
+fn step6(args: &Cli, rng: &mut StdRng) -> usize {
     let roll = rng.gen_range(1..=20);
     if [Season::SUMMER,Season::WINTER].contains(&args.season) {
         match roll {
@@ -383,8 +392,13 @@ fn step6(args: &Cli, rng: &mut ThreadRng) -> usize {
 
 fn main () {
     let args = Cli::parse();
-    let mut rng = rand::thread_rng();
+    let s = match args.seed {
+        Some(s) => s as u64,
+        None => rand::thread_rng().gen(),
+    };
+    let mut rng = rand::rngs::StdRng::seed_from_u64(s as u64);
     log(&args, &args);
+    log(&args, &format!("Seed {}", s));
 
     let mut days: Vec<Day> = Vec::new();
     let mut step6_flags = 0b1111; // 0001 - Clouds, 0010 - Wind, 0100 - Temperature, 1000 - Rain

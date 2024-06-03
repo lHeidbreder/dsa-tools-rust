@@ -2,19 +2,24 @@ use std::fs::File;
 use serde::Serialize;
 use clap::Parser;
 use dsa_tools_rust::*;
-use rand::Rng;
+use rand::{Rng, SeedableRng};
 
 #[derive(Parser)]
 struct Cli {
-    #[arg(short = 'v', long = "verbose", default_value_t = false)]
+    #[arg(short = 'v', long = "verbose", default_value_t = false, 
+        help = "Spuckt unnötig viel Holz aus")]
     verbose: bool,
-    #[arg(short = 'o', long = "output", default_value = None)]
+    #[arg(short = 'o', long = "output", default_value = None,
+        help = "Der Speicherort für die Ausgabe. Standard ist stdout.")]
     outfile: Option<std::path::PathBuf>,
-    #[arg(short = 'f', long = "format", default_value_t = Format::TEXT, ignore_case = true)]
+    #[arg(short = 'f', long = "format", default_value_t = Format::TEXT, ignore_case = true, 
+        help = "Ausgabeformat: Freitext, md, json oder csv. Standard ist Freitext.", hide_possible_values = true, hide_default_value = true)]
     format: Format,
-    #[arg(short = 'x', long = "seed", default_value_t = 0)]
-    seed: i64,
-    #[arg(short = 'l', long = "level", default_value_t = 1)]
+    #[arg(short = 'x', long = "seed", default_value = None,
+        help = "Setze den Seed manuell.", hide_default_value = true)]
+    seed: Option<i64>,
+    #[arg(short = 'l', long = "level", default_value_t = 1,
+        help = "Die Giftstufe.", hide_default_value = true)]
     level: u32,
 }
 impl std::fmt::Display for Cli {
@@ -24,7 +29,7 @@ impl std::fmt::Display for Cli {
             Some(f) => f,
             None => &binding,
         };
-        write!(f, "Seed: {}; Level: {}, Output: {}, Format: {}", self.seed, self.level, file.display(), self.format)
+        write!(f, "Level: {}, Output: {}, Format: {}", self.level, file.display(), self.format)
     }
 }
 
@@ -34,7 +39,7 @@ fn log(args: &Cli, msg: &impl std::fmt::Display) {
     }
 }
 
-#[derive(Default, Serialize)]
+#[derive(Clone, Default, Serialize)]
 struct Symptom {
     amount: u32,
     name: Box<str>,
@@ -57,8 +62,8 @@ impl std::fmt::Display for Symptom {
         Ok(())
     }
 }
-fn roll_symptom (rng: &mut rand::rngs::ThreadRng) -> Symptom {
-    let roll:u32 = rng.gen_range(1..21);
+fn roll_symptom (rng: &mut rand::rngs::StdRng) -> Symptom {
+    let roll:u32 = rng.gen_range(1..=20);
 
     match roll {
         1..=4 => Symptom{name: "Erbrechen".into(), characteristic: Some(Characteristic::CH), ..Default::default()},
@@ -80,12 +85,12 @@ struct SymptomList {
     symptoms: Vec<Symptom>
 }
 impl SymptomList {
-    fn push(&mut self, x: Symptom) {
+    fn push(&mut self, x: &mut Symptom) {
         for s in &mut self.symptoms {
-            if s.name == x.name {s.amount += 1;}
-            return
+            if s.name == x.name {s.amount += 1; return;}
         }
-        self.symptoms.push(x)
+        x.amount = 1;
+        self.symptoms.push(x.clone());
     }
 }
 impl std::fmt::Display for SymptomList {
@@ -130,7 +135,11 @@ impl std::fmt::Display for Poison {
 /// Zufallsgenerator für Gift beliebiger Stufe
 fn main() {
     let args = Cli::parse();
-    let mut rng = rand::thread_rng();
+    let s = match args.seed {
+        Some(s) => s as u64,
+        None => rand::thread_rng().gen(),
+    };
+    let mut rng = rand::rngs::StdRng::seed_from_u64(s as u64);
     log(&args, &args);
 
     if args.level < 1 || args.level > 20 {
@@ -146,7 +155,7 @@ fn main() {
     match args.level {
         1..=5 => {
             start = DiceOverTime{dice: 1, ..Default::default()};
-            damage = DiceOverTime{flat: 1, time: Timeunit::STD, ..Default::default()};
+            damage = DiceOverTime{dice: 1, time: Timeunit::STD, ..Default::default()};
             duration = DiceOverTime{flat: dice, ..Default::default()};
         },
         6..=9 => {
@@ -173,7 +182,7 @@ fn main() {
 
     let mut symptoms:SymptomList = SymptomList { symptoms: Vec::new() };
     for _ in 0..(args.level as f64/ 2.0).ceil() as u32 {
-        symptoms.push(roll_symptom(&mut rng))
+        symptoms.push(&mut roll_symptom(&mut rng))
     }
 
     let p = Poison{level: args.level, start: start, damage: damage, duration: duration, symptoms: symptoms };
