@@ -1,10 +1,11 @@
 # dsa-tools-rust
-CLI Tools für DSA 4.1, geschrieben in Rust
-Es stehen Hilfedialoge und Beispiele zur Verfügung
+CLI Tools für DSA 4.1, geschrieben in Rust.  
+Es stehen Hilfedialoge und Beispiele zur Verfügung.
 
 ### Ausführen
-Es ist für spezifische Maschinen kompiliert, achtet also darauf, die richtige Version zu erwischen.
-Ausführen könnt ihr es beispielsweise mit `dsa-wetter [OPTIONS]` oder `dsa-wetter.exe [OPTIONS]` unter Windows. Als erste Option empfehle ich immer `--help`.
+Es ist für spezifische Maschinen kompiliert, achtet also darauf, die richtige Version zu erwischen.  
+Ausführen könnt ihr es mit `./dsa-wetter [OPTIONS]` oder `.\dsa-wetter.exe [OPTIONS]` unter Windows.
+Als erste Option empfehle ich immer `--help`.
 
 ### Bugs
 Keine Chance, dass der Code vollständig korrekt ist. Bisher war er für mich ausreichend.
@@ -24,7 +25,7 @@ Es richtet sich nach den DSA 4.1 Regeln im WdE, S.156ff.
 
 ## dsa-gift
 Eine CLI Utility zum zufälligen Erstellen von Giften.
-Grundlage sind die Regeln zu Giftpflanzen im ZBA, S217.
+Grundlage sind die Regeln zu Giftpflanzen im ZBA, S.217.
 Wichtige Info dabei: Die angegebene Dauer sollte nur als Zeitraum des Schadens, nicht der Symptome, interpretiert werden - ansonsten fallen die Regeln bei hohen Giftstufen auseinander.
 
 ### Beispiele
